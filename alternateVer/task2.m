@@ -1,8 +1,10 @@
 clear all;
 close all;
 
+% for timing the script duration for debug purposes, ignore
 tic;
 
+% Dataset Pathing 
 rootPath = '/user/HS400/as05728/assignment2_speech';
 dataset = fullfile(rootPath, 'data');
 
@@ -21,22 +23,38 @@ mfccsPerWord = cell(length(words), 1);
 error = 0;
 
 % Iterate over each speaker and word
-for sp = 1:30
-    for w = 1:length(words)
+for sp = 1:30 
+    % Loop through all words in the 'words' array
+    for w = 1:length(words) 
+        % Construct the filename for the current speaker and word combination
         fileName = sprintf('sp%02d_%s_%s.mp3', sp, wordIDs(w), words(w));
+        
+        % Create the full path to the audio file by combining the dataset directory with the filename
         fullPath = fullfile(dataset, fileName);
-        try
+
+        % error handling
+        try  
+            % Read the audio file specified by fullPath
             [audioIn, fs] = audioread(fullPath);
+
+            % Compute MFCCs for the audio signal
+                % 'WindowLength' sets the length of each frame for MFCC calculation
+                % 'OverlapLength' sets the amount of overlap between consecutive frames
+                % 'NumCoeffs' sets the number of MFCC coefficients to compute (including the zeroth coefficient)
             coeffs = mfcc(audioIn, fs, ...
                 'WindowLength', round(frameLength * fs),...
                 'OverlapLength', round(frameLength * fs) - round(hopSize * fs),...
                 'NumCoeffs', 13); % Keeping 13 MFCCs
             
-            % Append MFCCs vertically for the current word
+            % Append the computed MFCCs vertically to the existing MFCCs for the current word, This creates a matrix where each row is a set of MFCCs for a frame
             mfccsPerWord{w} = [mfccsPerWord{w}; coeffs];
 
-        catch
+        % error handling
+        catch 
+            % Print an error message indicating the file could not be found
             fprintf('File not found: %s\n', fullPath);
+            
+            % Increment the error counter
             error = error + 1;
         end
     end
@@ -46,8 +64,7 @@ end
 meanCovPerWord = struct();
 for i = 1:length(words)
     % Retrieve the MFCCs for the current word from the cell array
-    wordMfccs = mfccsPerWif 
-endord{i};
+    wordMfccs = mfccsPerWord{i};
 
     % Calculate the mean of the MFCCs for the current word
     meanCovPerWord.(words(i)).mean = mean(wordMfccs, 2);
@@ -55,6 +72,7 @@ endord{i};
     % Calculate the covariance of the MFCCs for the current word
     meanCovPerWord.(words(i)).cov = cov(wordMfccs');
 end
+
 
 %debug code 
 if error > 0
