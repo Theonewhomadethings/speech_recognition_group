@@ -1,87 +1,116 @@
 clear all;
 close all;
 
-% for timing the script duration for debug purposes, ignore
+% Start timing the script for performance measurement
 tic;
 
-% Dataset Pathing 
-rootPath = '/user/HS400/as05728/assignment2_speech';
+% Dataset Pathing
+% Set the root path to your dataset directory
+rootPath = "C:\Users\Abdullah\Desktop\speech_audio_pr\GROUP";
 dataset = fullfile(rootPath, 'data');
 
 % Parameters for MFCC extraction
+% Frame length and hop size define the temporal resolution of the analysis
 frameLength = 30e-3; % 30 ms
 hopSize = 10e-3; % 10 ms
 
-% Fixed words and their corresponding identifiers
-words = ["say", "heed", "hid", "head", "had", "hard", "hud", "hod", "hoard", "hood", "whod", "heard", "again"];
-wordIDs = ["w00", "w01", "w02", "w03", "w04", "w05", "w06", "w07", "w08", "w09", "w10", "w11", "w12"];
+% Directory and file setup
+% Retrieve all MP3 files from the dataset directory
+File_names = dir(fullfile(dataset, '*.mp3'));
+N_files = length(File_names); % Total number of files
+mfccCoeffs = cell(N_files, 1); % Preallocate cell array for MFCCs
 
-% Initialize a cell array to store MFCCs for each word
-mfccsPerWord = cell(length(words), 1);
-
-%debug code
+% Error handling variable
 error = 0;
 
-% Iterate over each speaker and word
-for sp = 1:30 
-    % Loop through all words in the 'words' array
-    for w = 1:length(words) 
-        % Construct the filename for the current speaker and word combination
-        fileName = sprintf('sp%02d_%s_%s.mp3', sp, wordIDs(w), words(w));
-        
-        % Create the full path to the audio file by combining the dataset directory with the filename
-        fullPath = fullfile(dataset, fileName);
+% Extract MFCC features for each file
+for i = 1:N_files
+    % Construct the full path for each file
+    File_path = fullfile(File_names(i).folder, File_names(i).name);
 
-        % error handling
-        try  
-            % Read the audio file specified by fullPath
-            [audioIn, fs] = audioread(fullPath);
+    try
+        % Read the audio file
+        [audioIn, fs] = audioread(File_path);
 
-            % Compute MFCCs for the audio signal
-                % 'WindowLength' sets the length of each frame for MFCC calculation
-                % 'OverlapLength' sets the amount of overlap between consecutive frames
-                % 'NumCoeffs' sets the number of MFCC coefficients to compute (including the zeroth coefficient)
-            coeffs = mfcc(audioIn, fs, ...
-                'WindowLength', round(frameLength * fs),...
-                'OverlapLength', round(frameLength * fs) - round(hopSize * fs),...
-                'NumCoeffs', 13); % Keeping 13 MFCCs
-            
-            % Append the computed MFCCs vertically to the existing MFCCs for the current word, This creates a matrix where each row is a set of MFCCs for a frame
-            mfccsPerWord{w} = [mfccsPerWord{w}; coeffs];
+        % Initialize audio feature extractor for MFCCs
+        % Configure with Hamming window and specified overlap
+        audio_FE = audioFeatureExtractor(...
+            'SampleRate', fs, ...
+            'Window', hamming(round(frameLength * fs), 'periodic'), ...
+            'OverlapLength', round(frameLength * fs) - round(hopSize * fs), ...
+            'mfcc', true, ...
+            'mfccDelta', false, ...
+            'mfccDeltaDelta', false);
 
-        % error handling
-        catch 
-            % Print an error message indicating the file could not be found
-            fprintf('File not found: %s\n', fullPath);
-            
-            % Increment the error counter
-            error = error + 1;
-        end
+        % Extract MFCC features from the audio signal
+        mfccCoeffs{i} = extract(audio_FE, audioIn);
+
+    catch
+        % Error handling if file is not found
+        fprintf('File not found: %s\n', File_path);
+        error = error + 1;
     end
 end
 
-% Compute global statistics (mean and covariance) for each word
-meanCovPerWord = struct();
-for i = 1:length(words)
-    % Retrieve the MFCCs for the current word from the cell array
-    wordMfccs = mfccsPerWord{i};
+% Compute global statistics: mean and variance
+Dim = 13; % Dimension of MFCC features
+int_mean = zeros(N_files, Dim); % Intermediate mean values
+int_var = zeros(N_files, Dim);  % Intermediate variance values
 
-    % Calculate the mean of the MFCCs for the current word
-    meanCovPerWord.(words(i)).mean = mean(wordMfccs, 2);
-
-    % Calculate the covariance of the MFCCs for the current word
-    meanCovPerWord.(words(i)).cov = cov(wordMfccs');
+% Calculate mean and variance for each file
+for i = 1:N_files
+    int_mean(i, :) = mean(mfccCoeffs{i})';
+    int_var(i, :) = var(mfccCoeffs{i})';
 end
 
+% Compute the global mean and variance
+g_mean = mean(int_mean); % Global mean of MFCCs
+g_var = var(int_var);    % Global variance of MFCCs
 
-%debug code 
+% Compute the global covariance matrix and apply variance floor
+cov_matrix = cov(cat(1, mfccCoeffs{:}));  % Full covariance matrix
+cov_matrix = diag(diag(cov_matrix));      % Convert to diagonal matrix
+varianceFloor = 0.0001;                   % Define the variance floor
+scaled_g_var = max(g_var, varianceFloor); % Apply variance floor
+
+% Debugging code: Report number of file reading errors
 if error > 0
-    fprint("MFCCs not extracted fully, there were %d errors", error)
+    fprintf("MFCCs not extracted fully, there were %d errors\n", error);
 else
-    fprintf('MFCCs extracted and statistics computed for %d files\n', length(words) * 30);
+    fprintf('MFCCs extracted and statistics computed for %d files\n', N_files);
 end
 
-% Initialize HMM parameters using the mean and covariance
+% Display computed statistics for verification
+disp('Global Mean:');
+disp(g_mean);
 
+disp('Scaled Global Variance:');
+disp(scaled_g_var);
+
+disp('Scaled Global Covariance:');
+disp(cov_matrix);
+
+% Assume N states for the HMM
+N = 8; % 8 states for each HMM
+
+% Calculate average duration per state (assuming equal duration for simplicity)
+totalFrames = sum(cellfun(@(c) size(c, 1), mfccCoeffs)); % Total number of frames across all files
+avgDurationPerState = totalFrames / (N_files * N); % Average frames per state
+
+% State transition probabilities
+selfLoopProb = exp(-1 / (avgDurationPerState - 1)); % Self-loop probability
+nextStateProb = 1 - selfLoopProb; % Probability of moving to the next state
+
+% Emission probabilities for each state
+emissionMeans = repmat(g_mean, N, 1); % Replicate global mean for each state
+emissionCovariances = repmat(diag(scaled_g_var), 1, 1, N); % Replicate diagonal covariance matrix for each state
+
+% Entry and exit probabilities
+entryProb = zeros(1, N);
+entryProb(1) = 1;
+exitProb = zeros(1, N);
+exitProb(N) = 1;
+
+% Elapsed time for script execution
 elapsedTime = toc;
 fprintf("Total elapsed time: %.2f seconds\n", elapsedTime);
