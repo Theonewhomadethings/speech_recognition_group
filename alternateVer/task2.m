@@ -111,6 +111,29 @@ entryProb(1) = 1;
 exitProb = zeros(1, N);
 exitProb(N) = 1;
 
+%% debug code to check the HMM initialisation was successful, comment out if not debugging.
+% Display state transition probabilities
+disp('State Transition Probabilities:');
+fprintf('Self-loop probability: %f\n', selfLoopProb);
+fprintf('Next state probability: %f\n', nextStateProb);
+
+% Display entry and exit probabilities
+disp('Entry Probabilities:');
+disp(entryProb);
+disp('Exit Probabilities:');
+disp(exitProb);
+
+% Display emission probabilities (means and covariances) for each state
+disp('Emission Probabilities:');
+for state = 1:N
+    fprintf('State %d Mean:\n', state);
+    disp(emissionMeans(state, :));
+    fprintf('State %d Covariance:\n', state);
+    disp(emissionCovariances(:, :, state));
+end
+
+
 % Elapsed time for script execution
 elapsedTime = toc;
 fprintf("Total elapsed time: %.2f seconds\n", elapsedTime);
+
