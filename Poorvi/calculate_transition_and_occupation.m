@@ -1,33 +1,4 @@
-% function [transProb, occupationLikelihood] = calculate_transition_and_occupation(trans,mu,Sigma, alpha, beta, obsSeq)
-%     % trans: Transition probabilities matrix
-%     % mu: Mean parameters for Gaussian emission model
-%     % Sigma: Covariance matrix parameters for Gaussian emission model
-%     % obsSeq: Observation sequence matrix (each row represents a frame)
-% 
-%     N = size(trans, 1);  % Number of states
-%     T = size(obsSeq, 1); % Number of frames
-% 
-% 
-% 
-%     % Calculate occupation likelihoods
-%     occupationLikelihood = alpha .* beta;
-% 
-%     % Normalize occupation likelihoods
-%     occupationLikelihood = occupationLikelihood ./ sum(occupationLikelihood, 1);
-% 
-%     % Calculate transition probabilities
-%     transProb = zeros(N, N, T-1);
-%     for t = 1:T-1
-%         for i = 1:N
-%             for j = 1:N
-%                 transProb(i, j, t) = alpha(i, t) * trans(i, j) * mvnpdf(obsSeq(t+1, :), mu(j,:), Sigma(:,:,j)) * beta(j, t+1);
-%             end
-%         end
-%     end
-% 
-%     % Normalize transition probabilities
-%     transProb = transProb ./ sum(sum(transProb, 1), 2);
-% end
+
 
 function [logTransProb, logOccupationLikelihood] = calculate_transition_and_occupation(trans, mu, Sigma, logAlpha, logBeta, obsSeq)
     % trans: Transition probabilities matrix
