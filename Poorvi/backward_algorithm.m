@@ -1,30 +1,4 @@
-% Define the backward algorithm using log probabilities
-% Backward algorithm for continuous observations
 
-% function beta = backward_algorithm(obsSeq, trans, mu, Sigma)
-%     % obsSeq: Observation sequence matrix (each row represents a frame)
-%     % trans: Transition probabilities matrix
-%     % mu: Mean parameters for Gaussian emission model
-%     % Sigma: Covariance matrix parameters for Gaussian emission model
-% 
-%     N = size(trans, 1);   % Number of states
-%     T = size(obsSeq, 1);  % Number of frames
-% 
-%     % Initialize the backward matrix
-%     beta = ones(N, T);
-% 
-%     % Step 1: Initialization
-%     for i = 1:N
-%         beta(i, T) = 1;
-%     end
-% 
-%     % Step 2: Recursion
-%     for t = T-1:-1:1
-%         for i = 1:N
-%             beta(i, t) = sum(trans(i, :) .* mvnpdf(obsSeq(t+1, :), mu(i,:), Sigma(:,:,i)) .* beta(:, t+1)');
-%         end
-%     end
-% end#
 
 function logBeta = backward_algorithm(obsSeq, trans, mu, Sigma)
     % obsSeq: Observation sequence matrix (each row represents a frame)
