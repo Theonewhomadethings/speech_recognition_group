@@ -1,29 +1,4 @@
 
-% function alpha = forward_algorithm(O, pi, A, mu, Sigma)
-%     % O: observation sequence matrix (each row represents a frame)
-%     % pi: initial state probabilities
-%     % A: state transition probabilities
-%     % mu: mean parameters for Gaussian emission model
-%     % Sigma: covariance matrix parameters for Gaussian emission model
-% 
-%     N = size(A, 1);   % Number of states
-%     T = size(O, 1);   % Number of frames
-% 
-%     % Initialize the forward likelihood matrix
-%     alpha = zeros(N, T);
-% 
-%     % Step 1: Initialization
-%     alpha(:, 1) = pi .* mvnpdf(O(1, :), mu(1,:), Sigma(:,:,1))';
-% 
-%     % Step 2: Recursion
-%     for t = 2:T
-%         for j = 1:N
-%             % Perform element-wise multiplication and sum
-%             alpha(j, t) = sum(alpha(:, t-1)' .* A(:, j) .* mvnpdf(O(t, :), mu(j, :), Sigma(:,:,j))',"all");
-%         end
-%     end
-% end
-
 function logAlpha = forward_algorithm(O, logPi, logA, mu, Sigma)
     % O: observation sequence matrix (each row represents a frame)
     % logPi: log initial state probabilities
