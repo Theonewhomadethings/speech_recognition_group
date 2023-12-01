@@ -6,7 +6,7 @@ File_arr = cell(N_files, 1);
 Fs = cell(N_files, 1);
 audio_vector = cell(N_files, 1);
 seq = cell(N_files, 1);
-
+numCoeffs=13;
 for i = 1:N_files
     File_arr{i} = fullfile(File_names(i).folder, File_names(i).name);
     [audio_vector{i}, Fs{i}] = audioread(File_arr{i});
@@ -117,8 +117,7 @@ for d = 1:Dim
 end
         
             
-X = [mvnrnd(g_mean,cov_matrix,390)];
-GMModel = fitgmdist(X,1);
+
 
 
 
@@ -140,6 +139,9 @@ cov_matrix = diag(diag(cov_matrix));
 varianceFloor = 0.0001; 
 scaled_g_var = max(g_var, varianceFloor);
 
+X = [mvnrnd(g_mean,cov_matrix,390)];
+GMModel = fitgmdist(X,1);
+
 
 emissionCovariances = repmat(diag(diag(scaled_g_var)), 1, 1, N);
 % Display the computed global mean, variance, and covariance
@@ -160,10 +162,10 @@ selfLoopProb = exp(-1 / (avgDurationPerState - 1)); % Self-loop probability
 nextStateProb = 1 - selfLoopProb; % Probability of moving to the next state
 
 % Set up emission probabilities as a structure array
-emis(numStates) = struct('Mean', [], 'Covariance', []);
+emis(N) = struct('Mean', [], 'Covariance', []);
 
 % Fill the structure array for each state
-for i = 1:numStates
+for i = 1:N
     emis(i).Mean = repmat(g_mean, N, 1); 
     emis(i).Covariance =repmat(cov_matrix, [1, 1, 8]);
     % repmat(diag(diag(cov_matrix)), 1, 1, N);
@@ -192,9 +194,8 @@ numSymbols = size(emis, 2);
 % Training loop initialization
 maxIterations = 3; % Maximum number of iterations for training
 
-    
-    % Initialize accumulators for re-estimating model parameters
-transAccumulator = zeros(size(HMM.Trans));
+% Initialize accumulators for re-estimating model parameters
+transAccumulator = zeros(N,N);
 % Initialize emisAccumulator with means and covariances
 emisAccumulator = struct('mu', zeros(N, numCoeffs), 'Sigma', zeros(numCoeffs, numCoeffs, N));
 % Assuming N is the number of states
@@ -214,7 +215,7 @@ for classIndex = 1:numClasses
     obsSeq = classFeatureVectors{classIndex};
 
     % Initialize the HMM parameters for this class
-    HMM = struct('Trans', trans, 'Emission', emis);  % You need to implement a function to initialize your HMM
+    HMM = struct('Trans', trans, 'Emission', emis,'updated_Trans', transAccumulator,'updated_emis', emisAccumulator);  
 
     % Train the HMM model
     for iteration = 1:maxIterations
@@ -230,11 +231,11 @@ for classIndex = 1:numClasses
         [logtransProb, logoccupationLikelihood] = calculate_transition_and_occupation(HMM.Trans,repmat(g_mean, 8, 1), emissionCovariances,logAlpha,logBeta, obsSeq);
 
        % Display results
-        disp('Transition Probabilities:');
-        disp(logtransProb);
-
-        disp('Occupation Likelihoods:');
-        disp(logoccupationLikelihood);
+        %disp('Transition Probabilities:');
+        % disp(logtransProb);
+        % 
+        % disp('Occupation Likelihoods:');
+        % disp(logoccupationLikelihood);
 
        % Accumulate for transitions
     for t = 1:(length(obsSeq) - 1)
@@ -264,24 +265,19 @@ for classIndex = 1:numClasses
 end
 
 
+   updated_HMM = struct('updated_Trans', transAccumulator,'updated_emis', emisAccumulator); 
 
-
-    % Display or save the updated HMM parameters
-    fprintf('Updated Transition Probabilities:\n');
-    disp(HMM.Trans);
-    fprintf('Updated Emission Probabilities:\n');
-    disp(HMM.Emission);
 
     % Save the trained HMM for this class
-    HMMs{classIndex} = HMM;
+    updated_HMMs{classIndex} =updated_HMM;
 
     % Display or save the final HMM parameters for this class
     disp(['Final HMM parameters for class ' num2str(classIndex) ':']);
     disp('Final Transition Probabilities:');
-    disp(HMM.Trans);
+    disp(updated_HMMs{classIndex}.updated_Trans);
 
     disp('Final Emission Probabilities:');
-    disp(HMM.Emission);
+    disp(updated_HMMs{classIndex}.updated_emis);
 end
 
 % Now, HMMs{1} contains the trained HMM for the first word,
